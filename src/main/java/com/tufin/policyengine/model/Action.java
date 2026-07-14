@@ -1,6 +1,5 @@
 package com.tufin.policyengine.model;
 
-public enum Action {
-    ALLOW,
-    DENY
-}
+/** @deprecated Superseded by {@link com.tufin.policyengine.domain.Decision} */
+@Deprecated
+public enum Action {}
