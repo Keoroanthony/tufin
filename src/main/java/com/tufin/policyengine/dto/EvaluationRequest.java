@@ -1,6 +1,8 @@
 package com.tufin.policyengine.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record EvaluationRequest(
-        String subject,
-        String resource,
-        String action) {}
+        @NotBlank String subject,
+        @NotBlank String resource,
+        @NotBlank String action) {}
