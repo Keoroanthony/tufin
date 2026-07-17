@@ -1,5 +1,7 @@
 package com.tufin.policyengine.service.impl;
 
+import com.tufin.policyengine.client.AuditServiceClient;
+import com.tufin.policyengine.domain.Decision;
 import com.tufin.policyengine.domain.Rule;
 import com.tufin.policyengine.dto.EvaluationHistoryEntry;
 import com.tufin.policyengine.dto.EvaluationRequest;
@@ -21,16 +23,19 @@ public class PolicyRuleServiceImpl implements PolicyRuleService {
     private final RuleMatchingStrategy matchingStrategy;
     private final EvaluationMapper mapper;
     private final EvaluationHistoryStore historyStore;
+    private final AuditServiceClient auditServiceClient;
 
     public PolicyRuleServiceImpl(
             RuleRepository ruleRepository,
             RuleMatchingStrategy matchingStrategy,
             EvaluationMapper mapper,
-            EvaluationHistoryStore historyStore) {
+            EvaluationHistoryStore historyStore,
+            AuditServiceClient auditServiceClient) {
         this.ruleRepository = ruleRepository;
         this.matchingStrategy = matchingStrategy;
         this.mapper = mapper;
         this.historyStore = historyStore;
+        this.auditServiceClient = auditServiceClient;
     }
 
     @Override
@@ -44,6 +49,11 @@ public class PolicyRuleServiceImpl implements PolicyRuleService {
                 .orElseGet(mapper::defaultDeny);
 
         historyStore.add(mapper.toHistoryEntry(request, response));
+
+        if (Decision.DENY.name().equals(response.decision())) {
+            auditServiceClient.sendDenyAudit(request, response);
+        }
+
         return response;
     }
 

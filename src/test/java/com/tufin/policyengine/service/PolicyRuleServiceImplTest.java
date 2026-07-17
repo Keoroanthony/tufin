@@ -1,5 +1,6 @@
 package com.tufin.policyengine.service;
 
+import com.tufin.policyengine.client.AuditServiceClient;
 import com.tufin.policyengine.domain.Decision;
 import com.tufin.policyengine.domain.Rule;
 import com.tufin.policyengine.dto.EvaluationHistoryEntry;
@@ -15,6 +16,7 @@ import com.tufin.policyengine.strategy.WildcardResourceMatchingStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,6 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,13 +42,16 @@ class PolicyRuleServiceImplTest {
     @Mock
     private EvaluationHistoryStore historyStore;
 
+    @Mock
+    private AuditServiceClient auditServiceClient;
+
     private PolicyRuleService service;
 
     @BeforeEach
     void setUp() {
         RuleMatchingStrategy strategy = new DefaultRuleMatchingStrategy(new WildcardResourceMatchingStrategy());
         EvaluationMapper mapper = new EvaluationMapper();
-        service = new PolicyRuleServiceImpl(ruleRepository, strategy, mapper, historyStore);
+        service = new PolicyRuleServiceImpl(ruleRepository, strategy, mapper, historyStore, auditServiceClient);
     }
 
     private Rule allowAdminRule() {
@@ -162,5 +168,93 @@ class PolicyRuleServiceImplTest {
 
         assertThat(history).hasSize(1);
         assertThat(history.get(0).decision()).isEqualTo("ALLOW");
+    }
+
+    @Test
+    void shouldNotMatchWhenActionDiffers() {
+        when(ruleRepository.findAll()).thenReturn(List.of(allowAdminRule()));
+
+        EvaluationResponse response = service.evaluateTraffic(
+                new EvaluationRequest("ADMIN", "/admin/users", "WRITE"));
+
+        assertThat(response.decision()).isEqualTo("DENY");
+        assertThat(response.matchedRuleId()).isNull();
+    }
+
+    @Test
+    void shouldNotMatchWhenSubjectDiffers() {
+        when(ruleRepository.findAll()).thenReturn(List.of(allowAdminRule()));
+
+        EvaluationResponse response = service.evaluateTraffic(
+                new EvaluationRequest("USER", "/admin/users", "READ"));
+
+        assertThat(response.decision()).isEqualTo("DENY");
+        assertThat(response.matchedRuleId()).isNull();
+    }
+
+    @Test
+    void shouldReturnDefaultDenyWhenRuleRepositoryIsEmpty() {
+        when(ruleRepository.findAll()).thenReturn(List.of());
+
+        EvaluationResponse response = service.evaluateTraffic(
+                new EvaluationRequest("ADMIN", "/admin/users", "READ"));
+
+        assertThat(response.decision()).isEqualTo("DENY");
+        assertThat(response.matchedRuleId()).isNull();
+        assertThat(response.matchedRuleName()).isNull();
+    }
+
+    @Test
+    void shouldRecordEvaluationDetailsCorrectlyInHistory() {
+        when(ruleRepository.findAll()).thenReturn(List.of(allowAdminRule()));
+
+        service.evaluateTraffic(new EvaluationRequest("ADMIN", "/admin/users", "READ"));
+
+        ArgumentCaptor<EvaluationHistoryEntry> captor = ArgumentCaptor.forClass(EvaluationHistoryEntry.class);
+        verify(historyStore).add(captor.capture());
+
+        EvaluationHistoryEntry recorded = captor.getValue();
+        assertThat(recorded.subject()).isEqualTo("ADMIN");
+        assertThat(recorded.resource()).isEqualTo("/admin/users");
+        assertThat(recorded.action()).isEqualTo("READ");
+        assertThat(recorded.decision()).isEqualTo("ALLOW");
+        assertThat(recorded.matchedRuleId()).isEqualTo("rule-001");
+        assertThat(recorded.timestamp()).isNotNull();
+    }
+
+    @Test
+    void shouldRecordHistoryEvenWhenNoRuleMatches() {
+        when(ruleRepository.findAll()).thenReturn(List.of());
+
+        service.evaluateTraffic(new EvaluationRequest("ADMIN", "/admin/users", "READ"));
+
+        verify(historyStore).add(any(EvaluationHistoryEntry.class));
+    }
+
+    @Test
+    void shouldTriggerAuditClientWhenExplicitDenyRuleMatches() {
+        when(ruleRepository.findAll()).thenReturn(List.of(denyGuestRule()));
+
+        service.evaluateTraffic(new EvaluationRequest("GUEST", "/admin/users", "READ"));
+
+        verify(auditServiceClient).sendDenyAudit(any(EvaluationRequest.class), any(EvaluationResponse.class));
+    }
+
+    @Test
+    void shouldTriggerAuditClientWhenNoRuleMatchesDefaultDeny() {
+        when(ruleRepository.findAll()).thenReturn(List.of());
+
+        service.evaluateTraffic(new EvaluationRequest("ADMIN", "/admin/users", "READ"));
+
+        verify(auditServiceClient).sendDenyAudit(any(EvaluationRequest.class), any(EvaluationResponse.class));
+    }
+
+    @Test
+    void shouldNotTriggerAuditClientWhenDecisionIsAllow() {
+        when(ruleRepository.findAll()).thenReturn(List.of(allowAdminRule()));
+
+        service.evaluateTraffic(new EvaluationRequest("ADMIN", "/admin/users", "READ"));
+
+        verify(auditServiceClient, never()).sendDenyAudit(any(), any());
     }
 }
