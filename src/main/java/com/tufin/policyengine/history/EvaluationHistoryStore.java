@@ -11,7 +11,7 @@ public class EvaluationHistoryStore {
 
     private final CircularBuffer<EvaluationHistoryEntry> buffer;
 
-    public EvaluationHistoryStore(@Value("${evaluation.history.capacity:100}") int capacity) {
+    public EvaluationHistoryStore(@Value("${evaluation.history.capacity:20}") int capacity) {
         this.buffer = new CircularBuffer<>(capacity);
     }
 
@@ -20,6 +20,6 @@ public class EvaluationHistoryStore {
     }
 
     public List<EvaluationHistoryEntry> getAll() {
-        return buffer.getAll();
+        return buffer.getAll().reversed();
     }
 }

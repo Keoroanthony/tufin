@@ -19,6 +19,10 @@ import java.util.List;
 @Service
 public class PolicyRuleServiceImpl implements PolicyRuleService {
 
+    private static final Comparator<Rule> HIGHEST_PRIORITY_OLDEST_FIRST =
+            Comparator.comparingInt(Rule::getPriority).reversed()
+                    .thenComparing(Rule::getCreatedAt);
+
     private final RuleRepository ruleRepository;
     private final RuleMatchingStrategy matchingStrategy;
     private final EvaluationMapper mapper;
@@ -42,19 +46,22 @@ public class PolicyRuleServiceImpl implements PolicyRuleService {
     public EvaluationResponse evaluateTraffic(EvaluationRequest request) {
         EvaluationResponse response = ruleRepository.findAll().stream()
                 .filter(rule -> matchingStrategy.matches(rule, request))
-                .sorted(Comparator.comparingInt(Rule::getPriority).reversed()
-                        .thenComparing(Rule::getCreatedAt))
+                .sorted(HIGHEST_PRIORITY_OLDEST_FIRST)
                 .findFirst()
                 .map(mapper::toResponse)
                 .orElseGet(mapper::defaultDeny);
 
         historyStore.add(mapper.toHistoryEntry(request, response));
 
-        if (Decision.DENY.name().equals(response.decision())) {
+        if (requiresAudit(response)) {
             auditServiceClient.sendDenyAudit(request, response);
         }
 
         return response;
+    }
+
+    private boolean requiresAudit(EvaluationResponse response) {
+        return Decision.DENY.name().equals(response.decision());
     }
 
     @Override

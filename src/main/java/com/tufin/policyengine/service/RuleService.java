@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class RuleService {
@@ -28,7 +27,7 @@ public class RuleService {
         return ruleRepository.findAll().stream()
                 .sorted(Comparator.comparingInt(Rule::getPriority).reversed())
                 .map(RuleResponse::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public RuleResponse getRuleById(String id) {

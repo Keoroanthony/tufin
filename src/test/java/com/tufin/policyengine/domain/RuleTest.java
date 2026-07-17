@@ -145,65 +145,6 @@ class RuleTest {
                 .withMessageContaining("'/'");
     }
 
-    // ── Resource wildcard matching ────────────────────────────────────────────
-
-    @Test
-    void shouldMatchExactResource() {
-        Rule rule = new Rule("id-1", "name", 1, "/admin/users", "READ", "ADMIN", Decision.ALLOW, null, NOW);
-        assertThat(rule.matches("ADMIN", "/admin/users", "READ")).isTrue();
-    }
-
-    @Test
-    void shouldNotMatchDifferentExactResource() {
-        Rule rule = new Rule("id-1", "name", 1, "/admin/users", "READ", "ADMIN", Decision.ALLOW, null, NOW);
-        assertThat(rule.matches("ADMIN", "/admin/settings", "READ")).isFalse();
-    }
-
-    @Test
-    void shouldMatchWildcardSingleSegment() {
-        Rule rule = adminReadRule();
-        assertThat(rule.matches("ADMIN", "/admin/users", "READ")).isTrue();
-        assertThat(rule.matches("ADMIN", "/admin/settings", "READ")).isTrue();
-    }
-
-    @Test
-    void shouldMatchWildcardAcrossMultipleSegments() {
-        Rule rule = adminReadRule();
-        assertThat(rule.matches("ADMIN", "/admin/profile/edit", "READ")).isTrue();
-    }
-
-    @Test
-    void shouldNotMatchWildcardForDifferentPrefix() {
-        Rule rule = adminReadRule();
-        assertThat(rule.matches("ADMIN", "/user/profile", "READ")).isFalse();
-    }
-
-    @Test
-    void shouldNotMatchWhenSubjectDiffers() {
-        Rule rule = adminReadRule();
-        assertThat(rule.matches("GUEST", "/admin/users", "READ")).isFalse();
-    }
-
-    @Test
-    void shouldNotMatchWhenActionDiffers() {
-        Rule rule = adminReadRule();
-        assertThat(rule.matches("ADMIN", "/admin/users", "WRITE")).isFalse();
-    }
-
-    @Test
-    void shouldMatchRootWildcard() {
-        Rule rule = new Rule("id-1", "name", 1, "/*", "READ", "ADMIN", Decision.ALLOW, null, NOW);
-        assertThat(rule.matches("ADMIN", "/anything", "READ")).isTrue();
-        assertThat(rule.matches("ADMIN", "/a/b/c", "READ")).isTrue();
-    }
-
-    @Test
-    void shouldNotMatchEmptyPathAgainstWildcard() {
-        Rule rule = new Rule("id-1", "name", 1, "/admin/*", "READ", "ADMIN", Decision.ALLOW, null, NOW);
-        assertThat(rule.matches("ADMIN", "/admin/", "READ")).isTrue();
-        assertThat(rule.matches("ADMIN", "/admin", "READ")).isFalse();
-    }
-
     // ── Field accessors ───────────────────────────────────────────────────────
 
     @Test

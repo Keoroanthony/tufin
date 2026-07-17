@@ -1,10 +1,7 @@
 package com.tufin.policyengine.domain;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Objects;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public final class Rule {
 
@@ -53,24 +50,6 @@ public final class Rule {
         this.decision = decision;
         this.description = description;
         this.createdAt = createdAt;
-    }
-
-    public boolean matches(String subjectIn, String resourceIn, String actionIn) {
-        return this.subject.equals(subjectIn)
-                && this.action.equals(actionIn)
-                && matchesResource(resourceIn);
-    }
-
-    private boolean matchesResource(String requestedResource) {
-        if (!this.resource.contains("*")) {
-            return this.resource.equals(requestedResource);
-        }
-        String regexPattern = "^"
-                + Arrays.stream(this.resource.split("\\*", -1))
-                        .map(Pattern::quote)
-                        .collect(Collectors.joining(".*"))
-                + "$";
-        return requestedResource.matches(regexPattern);
     }
 
     public String getId() {
