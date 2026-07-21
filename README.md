@@ -4,6 +4,32 @@ A Spring Boot microservice that manages policy rules and evaluates incoming requ
 
 ---
 
+## System Overview
+
+This service is part of a two-service policy system:
+
+| Service                       | Port   | Technology          | Role                                              |
+|-------------------------------|--------|---------------------|---------------------------------------------------|
+| `policy-rule-engine` (this)   | 8080   | Java / Gradle       | Evaluates traffic; returns ALLOW or DENY          |
+| `policy-notification-service` | 8081   | Kotlin / Maven      | Receives DENY decisions; stores alert records     |
+
+### Running both services together
+
+**Terminal 1:**
+```bash
+./gradlew bootRun
+# → http://localhost:8080
+```
+
+**Terminal 2:**
+```bash
+cd ../policy-notification-service
+./mvnw spring-boot:run
+# → http://localhost:8081
+```
+
+---
+
 ## Prerequisites
 
 | Requirement | Version                   |
