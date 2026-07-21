@@ -13,6 +13,30 @@ This service is part of a two-service policy system:
 | `policy-rule-engine` (this)   | 8080   | Java / Gradle       | Evaluates traffic; returns ALLOW or DENY          |
 | `policy-notification-service` | 8081   | Kotlin / Maven      | Receives DENY decisions; stores alert records     |
 
+### Integration contract
+
+On every `DENY` decision, this service calls `policy-notification-service` via
+`WebClientAuditServiceClient`. The call is **fire-and-forget** (async WebClient):
+
+- The DENY response is **always returned immediately** to the caller, regardless of
+  notification delivery outcome.
+- If the notification service is unreachable → logged at `WARN`, no exception thrown.
+- If the notification service returns 4xx → logged at `ERROR` (contract mismatch).
+- `ALLOW` decisions **never** trigger a notification.
+
+#### `reason` convention
+
+| Scenario           | `reason` sent to notification service         |
+|--------------------|-----------------------------------------------|
+| A rule matched     | `"Rule '<ruleName>' matched"`                |
+| No rule matched    | `"No matching rule — default deny"`           |
+
+#### Configuration
+
+```properties
+notification.service.base-url=http://localhost:8081
+```
+
 ### Running both services together
 
 **Terminal 1:**
