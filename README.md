@@ -6,12 +6,17 @@ A Spring Boot microservice that manages policy rules and evaluates incoming requ
 
 ## System Overview
 
-This service is part of a two-service policy system:
+This service is part of a three-service policy system:
 
-| Service                       | Port   | Technology          | Role                                              |
-|-------------------------------|--------|---------------------|---------------------------------------------------|
-| `policy-rule-engine` (this)   | 8080   | Java / Gradle       | Evaluates traffic; returns ALLOW or DENY          |
-| `policy-notification-service` | 8081   | Kotlin / Maven      | Receives DENY decisions; stores alert records     |
+| Service                       | Port   | Technology          | Role                                                          |
+|-------------------------------|--------|---------------------|---------------------------------------------------------------|
+| `policy-gateway-service`      | 8082   | Kotlin / Maven      | **Public entry point** — proxies evaluation requests          |
+| `policy-rule-engine` (this)   | 8080   | Java / Gradle       | Evaluates traffic; returns ALLOW or DENY (internal)           |
+| `policy-notification-service` | 8081   | Kotlin / Maven      | Receives DENY decisions; stores alert records (internal)      |
+| PostgreSQL                    | 5432   | postgres:16-alpine  | Reserved for future persistence (currently unused by services)|
+
+> **External clients should call `policy-gateway-service` on port 8082**, not this service directly.
+> Ports 8080 and 8081 are internal to the Docker network in production.
 
 ### Integration contract
 
@@ -37,7 +42,18 @@ On every `DENY` decision, this service calls `policy-notification-service` via
 notification.service.base-url=http://localhost:8081
 ```
 
-### Running both services together
+### Running all services (recommended — Docker)
+
+From the parent directory (`IdeaProjects/`):
+
+```bash
+docker compose up --build
+```
+
+This starts all four containers in the correct order. See the
+[Docker section](#docker) below for full details.
+
+### Running services locally (without Docker)
 
 **Terminal 1:**
 ```bash
@@ -51,6 +67,43 @@ cd ../policy-notification-service
 ./mvnw spring-boot:run
 # → http://localhost:8081
 ```
+
+**Terminal 3:**
+```bash
+cd ../policy-gateway-service
+./mvnw spring-boot:run
+# → http://localhost:8082
+```
+
+---
+
+## Docker
+
+A `Dockerfile` is provided for this service using a multi-stage build:
+- **Builder stage** — `eclipse-temurin:21-jdk-jammy` compiles the fat JAR via `./gradlew bootJar`
+- **Runtime stage** — `eclipse-temurin:21-jre-jammy` runs the JAR as a non-root user
+
+### Start the full system
+
+```bash
+# From IdeaProjects/ (parent directory)
+docker compose up --build
+```
+
+### Individual image build (for debugging)
+
+```bash
+# From tufin/
+docker build -t policy-rule-engine .
+```
+
+### Key Docker environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `NOTIFICATION_SERVICE_BASE_URL` | `http://localhost:8081` | Override in Docker to `http://policy-notification-service:8081` |
+
+The `docker-compose.yml` sets this variable automatically.
 
 ---
 
