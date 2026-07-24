@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rule-engine
+  namespace: tufin-policy
+  labels:
+    app: rule-engine
+    app.kubernetes.io/part-of: tufin-policy
+    app.kubernetes.io/component: rule-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rule-engine
+  template:
+    metadata:
+      labels:
+        app: rule-engine
+        app.kubernetes.io/part-of: tufin-policy
+        app.kubernetes.io/component: rule-engine
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+      containers:
+        - name: rule-engine
+          image: policy-rule-engine:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: rule-engine-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

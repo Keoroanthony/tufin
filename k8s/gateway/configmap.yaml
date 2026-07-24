@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: tufin-policy
+  labels:
+    app: gateway
+    app.kubernetes.io/part-of: tufin-policy
+    app.kubernetes.io/component: gateway
+data:
+  RULE_ENGINE_BASE_URL: http://rule-engine:8080
+  RULE_ENGINE_TIMEOUT_CONNECT_SECONDS: "3"
+  RULE_ENGINE_TIMEOUT_READ_SECONDS: "5"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rule-engine-config
+  namespace: tufin-policy
+  labels:
+    app: rule-engine
+    app.kubernetes.io/part-of: tufin-policy
+    app.kubernetes.io/component: rule-engine
+data:
+  NOTIFICATION_SERVICE_BASE_URL: http://notification-service:8081
+  EVALUATION_HISTORY_CAPACITY: "20"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
